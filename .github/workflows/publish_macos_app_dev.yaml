@@ -1,0 +1,63 @@
+name: app-build-action-dev-macos
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "dev_v*"
+
+jobs:
+  # 打包Mac
+  build-mac-ios-android:
+    runs-on: macos-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      # 签出代码
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      # 设置Flutter
+      - name: Flutter action
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.38.x"
+          cache: true
+
+      # 打开MAC Desktop支持
+      - name: Enable Flutter Desktop
+        run: flutter config --enable-macos-desktop
+
+      # 更新Flutter的packages
+      - name: Restore packages
+        run: |
+          cd simple_live_app
+          flutter pub get
+
+      # 安装appdmg npm install -g appdmg
+      - name: Install appdmg
+        run: npm install -g appdmg
+
+      # 设置flutter_distributor环境
+      - name: Install flutter_distributor
+        run: dart pub global activate flutter_distributor
+
+      # 打包MAC
+      - name: Build MacOS
+        run: |
+          cd simple_live_app
+          flutter_distributor package --platform macos --targets dmg,zip --skip-clean
+
+      # 上传MAC至Artifacts
+      - name: Upload MacOS to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: |
+            simple_live_app/build/dist/*/*.dmg
+            simple_live_app/build/dist/*/*.zip
+      #完成
+      - run: echo "🍏 This job's status is ${{ job.status }}."
